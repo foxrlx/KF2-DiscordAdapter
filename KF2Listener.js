@@ -1,12 +1,15 @@
 const net = require('net');
 const logger = require('./Logging');
+const kf2helper = require('./KF2Helper')
 
 class KF2Listener {
     ServerObj;
     Socket;
-    KF2MessageEventHandler
+    KF2MessageEventHandler;
+    KF2ConnectionState;
     constructor(port) {
         this.port = port;
+        this.KF2ConnectionState = kf2helper.CLOSED;
     }
     log(msg) {
         logger.log('KF2Listener', msg);
@@ -16,11 +19,14 @@ class KF2Listener {
         this.ServerObj = net.createServer();
         this.ServerObj.listen(this.port, () => {
             this.log('KF2 LISTENER SERVER RUNNING ON PORT: ' + this.port);
+            this.KF2ConnectionState = kf2helper.WAITING;
         })
 
         this.ServerObj.on('connection', sock => {
             this.Socket = sock;
             this.log('Connection Received: ' + sock.remoteAddress);
+            this.KF2ConnectionState = kf2helper.CONNECTED;
+
             sock.on('data', data => {
                 this.onDataReceivedHandler(data);
             })

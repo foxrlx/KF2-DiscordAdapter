@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const kf2helper = require('./KF2Helper')
 
 class DiscordHelper {
     static getColor(value) {
@@ -9,11 +10,26 @@ class DiscordHelper {
       }
 
       
-    static CreateMessageEmbed(kf2MsgData) {
+    static CreateMessageEmbed(kf2MsgData, steamData) {
+        let steamAvatarUrl = "";
+        let steamProfileUrl = "";
+        let perkUrl = "";
+
+        if (steamData.response.players.length > 0) {
+            steamAvatarUrl = steamData.response.players[0].avatarmedium;
+            steamProfileUrl = steamData.response.players[0].profileurl;
+        }
+        if (kf2MsgData.perkname)
+        {
+            perkUrl = kf2helper.KF2PerkImageUrl[kf2MsgData.perkname]
+        }
+
         let color = this.getColor(kf2MsgData.health);
         let embed = new Discord.MessageEmbed()
             .setColor(color)
-            .setAuthor(kf2MsgData.name);
+            .setAuthor(kf2MsgData.name, steamAvatarUrl, steamProfileUrl)
+            .setDescription(kf2MsgData.message)
+            .setFooter(`${kf2MsgData.perkname} ${kf2MsgData.perklevel}`, perkUrl);;
         
         return embed;
     }
