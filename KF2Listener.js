@@ -6,6 +6,8 @@ class KF2Listener {
     ServerObj;
     Socket;
     KF2MessageEventHandler;
+    KF2MatchCreatedEventHandler;
+    KF2MatchLobbyDataEventHandler;
     KF2ConnectionState;
     constructor(port) {
         this.port = port;
@@ -47,6 +49,20 @@ class KF2Listener {
                 this.log(`${jsonData.content.name} (${jsonData.content.perk}) said: ${jsonData.content.message}`)
                 if (this.KF2MessageEventHandler)
                     this.KF2MessageEventHandler(jsonData.content);
+
+                break;
+            }
+            case 'KF2_MATCHCREATED': {
+                this.log("New Match Created");
+                if (this.KF2MatchCreatedEventHandler)
+                    this.KF2MatchCreatedEventHandler(jsonData.content);
+                break;
+            }
+            case 'KF2_LOBBY_UPDATE': {
+                this.log("Lobby Update");
+                if (this.KF2MatchLobbyDataEventHandler)
+                    this.KF2MatchLobbyDataEventHandler(jsonData.content);
+                break;
             }
         }
     }
