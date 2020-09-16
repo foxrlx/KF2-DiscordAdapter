@@ -14,8 +14,10 @@ class DiscordGateway {
         this.client.login(this.token);
     }
 
-    SendMsg(msg) {
-        this.client.channels.fetch(this.channelId).then(c => c.send(msg));
+    async SendMsg(msg) {
+        let channel;
+        await this.client.channels.fetch(this.channelId).then(c => channel = c );
+        return channel.send(msg);
     }
 
     RegisterEvents() {
