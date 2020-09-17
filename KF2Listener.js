@@ -42,7 +42,7 @@ class KF2Listener {
     }
 
     onDataReceivedHandler(data) {
-        console.log(data.toString());
+        //console.log(data.toString());
         var jsonData = JSON.parse(data);
         switch (jsonData.code) {
             case 'KF2_MSG': {
@@ -59,7 +59,7 @@ class KF2Listener {
                 break;
             }
             case 'KF2_LOBBY_UPDATE': {
-                this.log("Lobby Update");
+                //this.log("Lobby Update");
                 if (this.KF2MatchLobbyDataEventHandler)
                     this.KF2MatchLobbyDataEventHandler(jsonData.content);
                 break;
