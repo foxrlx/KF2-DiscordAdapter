@@ -1,68 +1,69 @@
-const { builtinModules } = require("module");
-const { Console } = require("console");
-const { isUndefined } = require("util");
-
 class KF2DiscordMatchData {
-    MatchData;
-    PlayerList;
-    MatchSessionId;
-    CreatedOn;
-    CurrentWave;
-    ForceUpdateLobbyEmbed;
+    mapName;
+    gameDifficulty;
+    gameLength;
+    totalWave;
+    waveStarted;
+    waveIsActive;
 
-    PlayerMsgObjArray;
-    MatchDataMsgObj;
+    createdOn;
+    currentWave;
+
+    playerList;
+    matchSessionId;
+
+    playerMsgObjArray;
+    matchDataMsgObj;
 
     // Flags
-    NewMatchAnnounced;
+    forceUpdateLobbyEmbed;
+    newMatchAnnounced;
 
     constructor (sessionid, createdon) {
-        this.MatchSessionId = sessionid;
-        this.CreatedOn = createdon;
+        this.matchSessionId = sessionid;
+        this.createdOn = createdon;
 
-        this.MatchData = {};
-        this.PlayerList = [];
-        this.PlayerMsgObjArray = [];
-        this.NewMatchAnnounced = false;
-        this.ForceUpdateLobbyEmbed = false;
-        this.CurrentWave = 0;
+        this.playerList = [];
+        this.playerMsgObjArray = [];
+        this.newMatchAnnounced = false;
+        this.forceUpdateLobbyEmbed = false;
+        this.currentWave = 0;
     }
-    
-    SetMatchAnnounced() {
-        this.NewMatchAnnounced = true;
+    setMatchAnnounced() {
+        this.newMatchAnnounced = true;
     }
-    CheckMatchAnnounced() {
-        return this.NewMatchAnnounced;
+    checkMatchAnnounced() {
+        return this.newMatchAnnounced;
     }
 
-    SetMatchData(matchData) {
-        this.MatchData.mapname = matchData.mapname;
-        this.MatchData.gamedifficulty = matchData.gamedifficulty;
-        this.MatchData.gamelength = matchData.gamelength;
-        this.MatchData.totalwave = matchData.totalwave;
-        this.MatchData.wavestarted = matchData.wavestarted;
-        this.MatchData.waveisactive = matchData.waveisactive;
+    setMatchData(matchData) {
+        this.mapName = matchData.mapname;
+        this.gameDifficulty = matchData.gamedifficulty;
+        this.gameLength = matchData.gamelength;
+        this.totalWave = matchData.totalwave;
+        this.waveStarted = matchData.wavestarted;
+        this.waveIsActive = matchData.waveisactive;
         
-        this.CurrentWave = matchData.currentwave;
-        this.CopyPlayerData(matchData.playerlist)
+        this.currentWave = matchData.currentwave;
+        this.copyPlayerData(matchData.playerlist)
     }
-    CopyPlayerData(newPList) {
+    copyPlayerData(newPList) {
         if (Array.isArray(newPList)) {
             for (let newPlayer of newPList) {
-                let player = this.GetPlayerById(newPlayer.id);
+                let player = this.getPlayerById(newPlayer.id);
                 if (player == null){
                     newPlayer.Changed = true;
-                    this.ForceUpdatePlayerEmbeds = true;
-                    this.PlayerList.push(newPlayer);
+                    this.forceUpdatePlayerEmbeds = true;
+                    this.playerList.push(newPlayer);
                 }
                 else {
-                    this.CopyProperties(player, newPlayer);
+                    this.copyProperties(player, newPlayer);
                 }
             }
         }
     }
 
-    CopyProperties(obj1, obj2) {
+    copyProperties(obj1, obj2) {
         for (var prop in obj1)
         {
             if (Object.prototype.hasOwnProperty.call(obj1, prop)) {
@@ -72,7 +73,7 @@ class KF2DiscordMatchData {
         }
     }
 
-    GetPlayerMsgObject(id) {
+    getPlayerMsgObject(id) {
         for (let playerMsgObj of this.PlayerMsgObjArray) {
             let playerMsgObjId = `${this.MatchSessionId}_${id}`
             if (playerMsgObj.id == playerMsgObjId)
@@ -80,7 +81,7 @@ class KF2DiscordMatchData {
         }
         return null;
     }
-    GetPlayerById(id) {
+    getPlayerById(id) {
         for (let player of this.PlayerList) {
             if (player.id == id) {
                 return player
@@ -89,13 +90,13 @@ class KF2DiscordMatchData {
         return null;
     }
 
-    CheckPlayerDataChanged(players) {
+    checkPlayerDataChanged(players) {
         for (let player of players) {
-            let matchPlayer = this.GetPlayerById(player.id)
+            let matchPlayer = this.getPlayerById(player.id)
             if (matchPlayer != null) {
-                if (JSON.stringify(matchPlayer, this.StringifyIgnore) != JSON.stringify(player, this.StringifyIgnore)) {
+                if (JSON.stringify(matchPlayer, this.stringifyIgnore) != JSON.stringify(player, this.stringifyIgnore)) {
                     matchPlayer.Changed = true;
-                    this.CopyProperties(matchPlayer, player);
+                    this.copyProperties(matchPlayer, player);
                 }
             }
         }
@@ -106,16 +107,16 @@ class KF2DiscordMatchData {
         // return false;
     }
 
-    CheckMatchDataChanged(newMatchData) {
-        if ((this.MatchData.CurrentWave != newMatchData.CurrentWave) ||
-            (this.MatchData.wavestarted != newMatchData.wavestarted) ||
-            (this.MatchData.waveisactive != newMatchData.waveisactive)) {
-                this.ForceUpdateLobbyEmbed = true;
+    checkMatchDataChanged(newMatchData) {
+        if ((this.currentWave != newMatchData.currentwave) ||
+            (this.waveStarted != newMatchData.wavestarted) ||
+            (this.waveIsActive != newMatchData.waveisactive)) {
+                this.forceUpdateLobbyEmbed = true;
             }
 
     }
 
-    StringifyIgnore(key, value)
+    stringifyIgnore(key, value)
     {
         if (key=="SteamData") return undefined;
         else if (key == "Changed") return undefined;

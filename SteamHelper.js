@@ -4,7 +4,7 @@ class SteamHelper {
         this.token = token;
     }
 
-    GetPlayerSummaries(steamid) {
+    getPlayerSummaries(steamid) {
         let self = this;
         return new Promise(function (resolve, reject) {
             var options = {

@@ -1,25 +1,25 @@
 const config = require('config');
 const logger = require('./Logging');
 const helper = require('./DiscordHelper');
-const SteamHelper = require('./SteamHelper');
-const DiscordGateway = require('./DiscordGateway');
-const KF2Listener = require('./KF2Listener');
-const MatchData = require('./KF2DiscordMatchData');
+const steamHelper = require('./SteamHelper');
+const discordGateway = require('./DiscordGateway');
+const kf2Listener = require('./KF2Listener');
+const matchData = require('./KF2DiscordMatchData');
 
 let currentMatchSession;
 let lastPlayerEmbedSent;
-let CheckEmbedsInterval;
+let checkEmbedsInterval;
 let steam;
 (async () => {
     let token = config.get("Discord.Token");
     let channelId = config.get("Discord.ChannelId")
     let steamToken = config.get("Steam.Token");
     
-    steam = new SteamHelper(steamToken);
-    let discord = new DiscordGateway(token, channelId);
+    steam = new steamHelper(steamToken);
+    let discord = new discordGateway(token, channelId);
 
     lastPlayerEmbedSent = new Date();
-    CheckEmbedsInterval = setInterval(CheckPlayerEmbedsTimer, 500);
+    checkEmbedsInterval = setInterval(checkPlayerEmbedsTimer, 500);
 
     discord.DiscordReadyHandler = () => {
         logger.log("Discord", 'Logged In');
@@ -29,66 +29,66 @@ let steam;
     }
     discord.Login();
 
-    let kf2listener = new KF2Listener(7070);
+    let kf2listener = new kf2Listener(7070);
 
-    kf2listener.KF2MessageEventHandler = content => {
+    kf2listener.kf2MessageEventHandler = content => {
         let steamid = helper.h2d(content.steamid);
-        steam.GetPlayerSummaries(steamid).then(data => {
+        steam.getPlayerSummaries(steamid).then(data => {
             let steamData = JSON.parse(data);
-            let embed = helper.CreateMessageEmbed(content, steamData);
+            let embed = helper.createMessageEmbed(content, steamData);
             discord.SendMsg(embed);
         });
     }
 
-    kf2listener.KF2MatchCreatedEventHandler = content => {
-        currentMatchSession = new MatchData(content.matchsession, helper.getDateTime());
+    kf2listener.kf2MatchCreatedEventHandler = content => {
+        currentMatchSession = new matchData(content.matchsession, helper.getDateTime());
     }
 
-    kf2listener.KF2MatchLobbyDataEventHandler = async content => {
-        if (content.matchsession != currentMatchSession.MatchSessionId)
+    kf2listener.kf2MatchLobbyDataEventHandler = async content => {
+        if (content.matchsession != currentMatchSession.matchSessionId)
             return;
 
         if (!Array.isArray(content.playerlist))
             content.playerlist = [];
 
-        currentMatchSession.CheckPlayerDataChanged(content.playerlist);
-        currentMatchSession.CheckMatchDataChanged(content);
-        currentMatchSession.SetMatchData(content);
+        currentMatchSession.checkPlayerDataChanged(content.playerlist);
+        currentMatchSession.checkMatchDataChanged(content);
+        currentMatchSession.setMatchData(content);
     }
-    function CheckPlayerEmbedsTimer() {
-        if (currentMatchSession && currentMatchSession.ForceUpdateLobbyEmbed) {
-            currentMatchSession.ForceUpdateLobbyEmbed = false;
-            SendLobbyEmbed();
+    function checkPlayerEmbedsTimer() {
+        if (currentMatchSession && currentMatchSession.forceUpdateLobbyEmbed) {
+            currentMatchSession.forceUpdateLobbyEmbed = false;
+            sendLobbyEmbed();
         }
 
         if ((new Date() - lastPlayerEmbedSent) / 1000 > 5) {
             if (currentMatchSession) {
-                SendEmbeds();
+                sendEmbeds();
             }
             lastPlayerEmbedSent = new Date();
         }
     }
     
-    async function SendEmbeds() {
-        if (currentMatchSession.CurrentWave == 0) {
-            SendLobbyEmbed();
+    async function sendEmbeds() {
+        if (currentMatchSession.currentWave == 0) {
+            sendLobbyEmbed();
             return;
         }
-        for (let player of currentMatchSession.PlayerList) {
+        for (let player of currentMatchSession.playerList) {
             if (player.Changed == true) {
                 player.Changed = false;
-                let playerEmbed = helper.CreatePlayerEmbed(player);
-                let pMsgObj = currentMatchSession.GetPlayerMsgObject(player.id);
+                let playerEmbed = helper.createPlayerEmbed(player);
+                let pMsgObj = currentMatchSession.getPlayerMsgObject(player.id);
                 if (pMsgObj == null) {
                     let steamid = helper.h2d(player.steamid);
-                    steam.GetPlayerSummaries(steamid).then(data => {
+                    steam.getPlayerSummaries(steamid).then(data => {
                         let steamData = JSON.parse(data);
                         player.SteamData = steamData;
                         player.Changed = true;
                     });
         
                     let playerMsgObj = await discord.SendMsg(playerEmbed);
-                    currentMatchSession.PlayerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.MatchSessionId}_${player.id}` })
+                    currentMatchSession.playerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.matchSessionId}_${player.id}` })
                 }
                 else {
                     pMsgObj.msgobj.edit(playerEmbed);
@@ -97,17 +97,17 @@ let steam;
         }
     }
 
-    async function SendLobbyEmbed() {
-        let embed = helper.CreateLobbyEmbed(currentMatchSession);
+    async function sendLobbyEmbed() {
+        let embed = helper.createLobbyEmbed(currentMatchSession);
 
-        if (!currentMatchSession.MatchDataMsgObj)
-            currentMatchSession.MatchDataMsgObj = await discord.SendMsg(embed);
+        if (!currentMatchSession.matchDataMsgObj)
+            currentMatchSession.matchDataMsgObj = await discord.SendMsg(embed);
         else {
-            currentMatchSession.MatchDataMsgObj.edit(embed);
+            currentMatchSession.matchDataMsgObj.edit(embed);
         }
     }
 
-    kf2listener.StartServer();
+    kf2listener.startServer();
 })();
 
 

@@ -50,7 +50,7 @@ class DiscordHelper {
       }
 
       
-    static CreateMessageEmbed(kf2MsgData, steamData) {
+    static createMessageEmbed(kf2MsgData, steamData) {
         let steamAvatarUrl = "";
         let steamProfileUrl = "";
         let perkUrl = "";
@@ -74,7 +74,7 @@ class DiscordHelper {
         return embed;
     }
 
-    static CreateLobbyEmbed(matchData) {
+    static createLobbyEmbed(matchData) {
         let title = "Match waiting in lobby";
         if (matchData.CurrentWave > 0)
             title = `Match in proggress - Wave: ${matchData.CurrentWave}/${matchData.MatchData.totalwave}`;
@@ -102,7 +102,7 @@ class DiscordHelper {
         return embed;
     }
 
-    static CreatePlayerEmbed(pData) {
+    static createPlayerEmbed(pData) {
         let steamAvatarUrl = "https://arte.folha.uol.com.br/esporte/2016/07/30/estadio-olimpico/images/load.gif";
         let steamProfileUrl = "";
         let perkUrl = "";

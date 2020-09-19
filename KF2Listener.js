@@ -3,12 +3,12 @@ const logger = require('./Logging');
 const kf2helper = require('./KF2Helper')
 
 class KF2Listener {
-    ServerObj;
-    Socket;
-    KF2MessageEventHandler;
-    KF2MatchCreatedEventHandler;
-    KF2MatchLobbyDataEventHandler;
-    KF2ConnectionState;
+    serverObj;
+    socket;
+    kf2MessageEventHandler;
+    kf2MatchCreatedEventHandler;
+    kf2MatchLobbyDataEventHandler;
+    kf2ConnectionState;
     constructor(port) {
         this.port = port;
         this.KF2ConnectionState = kf2helper.CLOSED;
@@ -17,15 +17,15 @@ class KF2Listener {
         logger.log('KF2Listener', msg);
     }
 
-    StartServer() {
-        this.ServerObj = net.createServer();
-        this.ServerObj.listen(this.port, () => {
+    startServer() {
+        this.serverObj = net.createServer();
+        this.serverObj.listen(this.port, () => {
             this.log('KF2 LISTENER SERVER RUNNING ON PORT: ' + this.port);
             this.KF2ConnectionState = kf2helper.WAITING;
         })
 
-        this.ServerObj.on('connection', sock => {
-            this.Socket = sock;
+        this.serverObj.on('connection', sock => {
+            this.socket = sock;
             this.log('Connection Received: ' + sock.remoteAddress);
             this.KF2ConnectionState = kf2helper.CONNECTED;
 
@@ -47,21 +47,21 @@ class KF2Listener {
         switch (jsonData.code) {
             case 'KF2_MSG': {
                 this.log(`${jsonData.content.name} (${jsonData.content.perk}) said: ${jsonData.content.message}`)
-                if (this.KF2MessageEventHandler)
-                    this.KF2MessageEventHandler(jsonData.content);
+                if (this.kf2MessageEventHandler)
+                    this.kf2MessageEventHandler(jsonData.content);
 
                 break;
             }
             case 'KF2_MATCHCREATED': {
                 this.log("New Match Created");
-                if (this.KF2MatchCreatedEventHandler)
-                    this.KF2MatchCreatedEventHandler(jsonData.content);
+                if (this.kf2MatchCreatedEventHandler)
+                    this.kf2MatchCreatedEventHandler(jsonData.content);
                 break;
             }
             case 'KF2_LOBBY_UPDATE': {
                 //this.log("Lobby Update");
-                if (this.KF2MatchLobbyDataEventHandler)
-                    this.KF2MatchLobbyDataEventHandler(jsonData.content);
+                if (this.kf2MatchLobbyDataEventHandler)
+                    this.kf2MatchLobbyDataEventHandler(jsonData.content);
                 break;
             }
         }

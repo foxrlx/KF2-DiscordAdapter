@@ -15,8 +15,7 @@ class DiscordGateway {
     }
 
     async SendMsg(msg) {
-        let channel;
-        await this.client.channels.fetch(this.channelId).then(c => channel = c );
+        const channel = await this.client.channels.fetch(this.channelId);
         return channel.send(msg);
     }
 
