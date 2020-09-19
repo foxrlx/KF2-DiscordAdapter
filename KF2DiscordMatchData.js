@@ -1,3 +1,5 @@
+const logger = require('./Logging');
+
 class KF2DiscordMatchData {
     mapName;
     gameDifficulty;
@@ -45,14 +47,15 @@ class KF2DiscordMatchData {
         this.waveIsActive = matchData.waveisactive;
         
         this.currentWave = matchData.currentwave;
-        this.copyPlayerData(matchData.playerlist)
+        //this.copyPlayerData(matchData.playerlist)
     }
+
     copyPlayerData(newPList) {
         if (Array.isArray(newPList)) {
             for (let newPlayer of newPList) {
-                let player = this.getPlayerById(newPlayer.id);
+                let player = this.getPlayerBySteamId(newPlayer.steamid);
                 if (player == null){
-                    newPlayer.Changed = true;
+                    newPlayer.changed = true;
                     this.forceUpdatePlayerEmbeds = true;
                     this.playerList.push(newPlayer);
                 }
@@ -74,32 +77,72 @@ class KF2DiscordMatchData {
     }
 
     getPlayerMsgObject(id) {
-        for (let playerMsgObj of this.PlayerMsgObjArray) {
-            let playerMsgObjId = `${this.MatchSessionId}_${id}`
+        for (let playerMsgObj of this.playerMsgObjArray) {
+            let playerMsgObjId = `${this.matchSessionId}_${id}`
             if (playerMsgObj.id == playerMsgObjId)
                 return playerMsgObj;
         }
         return null;
     }
     getPlayerById(id) {
-        for (let player of this.PlayerList) {
+        for (let player of this.playerList) {
             if (player.id == id) {
                 return player
             }
         }
         return null;
     }
+    getPlayerBySteamId(sid) {
+        for (let player of this.playerList) {
+            if (player.steamid == sid)
+                return player;
+        }
+        return null;
+    }
 
-    checkPlayerDataChanged(players) {
-        for (let player of players) {
-            let matchPlayer = this.getPlayerById(player.id)
-            if (matchPlayer != null) {
-                if (JSON.stringify(matchPlayer, this.stringifyIgnore) != JSON.stringify(player, this.stringifyIgnore)) {
-                    matchPlayer.Changed = true;
-                    this.copyProperties(matchPlayer, player);
+    checkPlayerDataChanged(kf2PlayerList) {
+        // Check for changes or new players joining the match
+        for (let kf2Player of kf2PlayerList) {
+            kf2Player.left = false;
+            let matchPlayer = this.getPlayerBySteamId(kf2Player.steamid)
+            if (matchPlayer == null) {
+                kf2Player.changed = true;
+                this.forceUpdatePlayerEmbeds = true;
+                this.playerList.push(kf2Player);
+                logger.log('KF2', `Player Joined: ${kf2Player.playername}`);
+            }
+            else {
+                if (JSON.stringify(matchPlayer, this.stringifyIgnore) != JSON.stringify(kf2Player, this.stringifyIgnore)) {
+                    matchPlayer.changed = true;
+                    this.copyProperties(matchPlayer, kf2Player);
                 }
             }
         }
+
+        // Check for players leaving the match
+        for (let matchPlayer of this.playerList) {
+            if (matchPlayer.left)
+                continue;
+
+            let playerLeft = true;
+            for (let kf2Player of kf2PlayerList) {
+                if (kf2Player.steamid == matchPlayer.steamid) {
+                    playerLeft = false;
+                    break;
+                }
+            }
+            matchPlayer.left = playerLeft;
+            if (playerLeft) {
+                logger.log('KF2', `Player Left: ${matchPlayer.playername}`);
+                if (this.currentWave == 0) {
+                    
+                }
+                matchPlayer.changed = true;
+                this.forceUpdateLobbyEmbed = true;
+            }
+        }
+
+
         //console.log(JSON.stringify(this.PlayerList));
         //console.log(JSON.stringify(players));
         // if (JSON.stringify(this.PlayerList, this.StringifyIgnore) != JSON.stringify(players, this.StringifyIgnore))
@@ -108,18 +151,17 @@ class KF2DiscordMatchData {
     }
 
     checkMatchDataChanged(newMatchData) {
-        if ((this.currentWave != newMatchData.currentwave) ||
-            (this.waveStarted != newMatchData.wavestarted) ||
-            (this.waveIsActive != newMatchData.waveisactive)) {
-                this.forceUpdateLobbyEmbed = true;
-            }
-
+        if ((this.currentWave != newMatchData.currentwave)
+        || (this.waveStarted != newMatchData.wavestarted)
+        || (this.waveIsActive != newMatchData.waveisactive)) {
+            this.forceUpdateLobbyEmbed = true;
+        }
     }
 
     stringifyIgnore(key, value)
     {
-        if (key=="SteamData") return undefined;
-        else if (key == "Changed") return undefined;
+        if (key=="steamData") return undefined;
+        else if (key == "changed") return undefined;
         else if (key == "ping") return undefined;
         else return value;
     }

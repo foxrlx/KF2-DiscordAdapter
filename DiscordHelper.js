@@ -76,22 +76,24 @@ class DiscordHelper {
 
     static createLobbyEmbed(matchData) {
         let title = "Match waiting in lobby";
-        if (matchData.CurrentWave > 0)
-            title = `Match in proggress - Wave: ${matchData.CurrentWave}/${matchData.MatchData.totalwave}`;
+        if (matchData.currentWave > 0)
+            title = `Match in proggress - Wave: ${matchData.currentWave}/${matchData.totalWave}`;
         let embed = new Discord.MessageEmbed()
             .setColor("#00ff00")
             .setTitle(title)
             .addFields(
-                { name: "Map Name:", value: matchData.MatchData.mapname, inline: true },
-                { name: "Game Info:", value: `${matchData.MatchData.gamedifficulty} - ${matchData.MatchData.gamelength} (${matchData.MatchData.totalwave})`, inline: true }
+                { name: "Map Name:", value: matchData.mapName, inline: true },
+                { name: "Game Info:", value: `${matchData.gameDifficulty} - ${matchData.gameLength} (${matchData.totalWave})`, inline: true }
             )
-            .setFooter(`Match created on: ${matchData.CreatedOn}`);
+            .setFooter(`Match created on: ${matchData.createdOn}`);
 
-        if (Symbol.iterator in Object(matchData.PlayerList) && matchData.PlayerList.length > 0) {
-            for (let player of matchData.PlayerList) {
-                embed.addField("Player: ", `${player.ready == true ? this.emoji.checkmark : this.emoji.x} ${player.playername} - ${player.perkname} ${player.perklevel}`);
-                if (player.ready == false)
-                    embed.setColor("#ff0000");
+        if (Array.isArray(matchData.playerList) && matchData.playerList.length > 0) {
+            for (let player of matchData.playerList) {
+                if (player.left == false) {
+                    embed.addField("Player: ", `${player.ready == true ? this.emoji.checkmark : this.emoji.x} ${player.playername} - ${player.perkname} ${player.perklevel}`);
+                    if (player.ready == false)
+                        embed.setColor("#ff0000");
+                }
             }
         }
         else {

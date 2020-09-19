@@ -75,20 +75,19 @@ let steam;
             return;
         }
         for (let player of currentMatchSession.playerList) {
-            if (player.Changed == true) {
-                player.Changed = false;
+            if (player.changed == true) {
+                player.changed = false;
                 let playerEmbed = helper.createPlayerEmbed(player);
-                let pMsgObj = currentMatchSession.getPlayerMsgObject(player.id);
+                let pMsgObj = currentMatchSession.getPlayerMsgObject(player.steamid);
                 if (pMsgObj == null) {
                     let steamid = helper.h2d(player.steamid);
                     steam.getPlayerSummaries(steamid).then(data => {
                         let steamData = JSON.parse(data);
-                        player.SteamData = steamData;
-                        player.Changed = true;
+                        player.steamData = steamData;
+                        player.changed = true;
                     });
-        
                     let playerMsgObj = await discord.SendMsg(playerEmbed);
-                    currentMatchSession.playerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.matchSessionId}_${player.id}` })
+                    currentMatchSession.playerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.matchSessionId}_${player.steamid}` })
                 }
                 else {
                     pMsgObj.msgobj.edit(playerEmbed);
