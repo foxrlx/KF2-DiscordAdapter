@@ -1,18 +1,11 @@
 const Discord = require('discord.js');
-const kf2helper = require('./KF2Helper')
+const kf2helper = require('./KF2Helper');
+const { match } = require('assert');
+const moment = require('moment');
 
 class DiscordHelper {
-    static getDateTime = () => {
-        let d = new Date();
-        let year = d.getFullYear();
-        let month = `0${d.getMonth()+1}`.slice(-2);
-        let day = `0${d.getDay()}`.slice(-2);
-
-        let h = `0${d.getHours()}`.slice(-2);
-        let m = `0${d.getMinutes()}`.slice(-2);
-        let s = `0${d.getSeconds()}`.slice(-2);
-
-        return `${day}/${month}/${year} ${h}:${m}:${s}`;
+    static getDateTime = (time) => {
+        return time.format("DD/MM/YYYY - HH:mm:ss");
     }
 
     static h2d(s) {
@@ -76,25 +69,52 @@ class DiscordHelper {
 
     static createLobbyEmbed(matchData) {
         let title = "Match waiting in lobby";
-        if (matchData.currentWave > 0)
+        if (matchData.currentWave > 0 && !matchData.traderActive && !matchData.matchEnded)
             title = `Match in proggress - Wave: ${matchData.currentWave}/${matchData.totalWave}`;
+        if (matchData.currentWave > 0 && matchData.traderActive && !matchData.matchEnded)
+            title = `Match in proggress - Trader Time - Next Wave: ${matchData.currentWave+1}`;
+        if (matchData.matchEnded)
+            title = `Match ended at wave ${matchData.currentWave} of ${matchData.totalWave}`;
         let embed = new Discord.MessageEmbed()
             .setColor("#00ff00")
             .setTitle(title)
             .addFields(
                 { name: "Map Name:", value: matchData.mapName, inline: true },
                 { name: "Game Info:", value: `${matchData.gameDifficulty} - ${matchData.gameLength} (${matchData.totalWave})`, inline: true }
-            )
-            .setFooter(`Match created on: ${matchData.createdOn}`);
+            );
+            
+            let footer = []
+            footer.push(`Match created: ${this.getDateTime(matchData.createdTime)}`);
 
+            if (matchData.startedTime != null)
+                footer.push(`Started: ${this.getDateTime(matchData.startedTime)}`);
+
+            if (matchData.endedTime != null)
+                footer.push(`Ended: ${this.getDateTime(matchData.endedTime)}`);
+            embed.setFooter(footer.join("\n"));
+        
+        if (matchData.currentWave > 0 && !matchData.traderActive)
+            embed.addField("Mobs:", `${matchData.aiRemaining}/${matchData.aiTotal}`, true);
+        if (matchData.currentWave > 0 && matchData.traderActive) {
+            let duration = moment.duration(matchData.waveEndTime.diff(matchData.waveStartTime));
+            embed.addField("Last Wave Duration:", `${(duration.hours() * 60) + duration.minutes()} mins ${duration.seconds()} secs`, true);
+        }
+
+        var playersText = [];
         if (Array.isArray(matchData.playerList) && matchData.playerList.length > 0) {
             for (let player of matchData.playerList) {
-                if (player.left == false) {
-                    embed.addField("Player: ", `${player.ready == true ? this.emoji.checkmark : this.emoji.x} ${player.playername} - ${player.perkname} ${player.perklevel}`);
-                    if (player.ready == false)
-                        embed.setColor("#ff0000");
-                }
+                let icon = this.emoji.x;
+                if (player.ready == true)
+                    icon = this.emoji.checkmark;
+                if (player.left)
+                    icon = this.emoji.noEntrySign;
+                
+                playersText.push(`${icon} ${player.playername}${player.left ? "(disconnected)" : ""} - ${player.perkname} ${player.perklevel}`);
+                if (player.ready == false)
+                    embed.setColor("#ff0000");
             }
+            if (matchData.playerList.length > 0)
+                embed.addField("Players: ", playersText.join("\n"));
         }
         else {
             embed.addField("Player: ", "none");
@@ -104,15 +124,15 @@ class DiscordHelper {
         return embed;
     }
 
-    static createPlayerEmbed(pData) {
+    static createPlayerEmbed(pData, matchData) {
         let steamAvatarUrl = "https://arte.folha.uol.com.br/esporte/2016/07/30/estadio-olimpico/images/load.gif";
         let steamProfileUrl = "";
         let perkUrl = "";
-        console.log(pData.SteamData);
+        console.log(pData.steamData);
 
-        if (pData.SteamData && pData.SteamData.response.players.length > 0) {
-            steamAvatarUrl = pData.SteamData.response.players[0].avatarmedium;
-            steamProfileUrl = pData.SteamData.response.players[0].profileurl;
+        if (pData.steamData && pData.steamData.response.players.length > 0) {
+            steamAvatarUrl = pData.steamData.response.players[0].avatarmedium;
+            steamProfileUrl = pData.steamData.response.players[0].profileurl;
         }
         if (pData.perkname)
         {
@@ -120,6 +140,8 @@ class DiscordHelper {
         }
 
         let color = this.getColor(pData.maxhealth > 0 ? pData.health / pData.maxhealth * 100 : 0);
+        if (pData.left)
+            color = "#ff0000";
         let embed = new Discord.MessageEmbed()
             .setColor(color)
             .setAuthor(pData.playername, steamAvatarUrl, steamProfileUrl)
@@ -128,15 +150,22 @@ class DiscordHelper {
                 { name: "K/D/A:", value: `${pData.kills}/${pData.deaths}/${pData.assists}`, inline: true },
                 { name: "Dosh:", value: pData.dosh, inline: true },
                 { name: "Ping:", value: pData.ping, inline: true },
-            )
-            .setFooter(`${pData.perkname} ${pData.perklevel}`, perkUrl);
+            );
+
+        if (pData.left) {
+            embed.setFooter(`player left at wave ${matchData.currentWave} - ${this.getDateTime(pData.leftTime)}`);
+        }
+        else {
+            embed.setFooter(`${pData.perkname} ${pData.perklevel}`, perkUrl);
+        }
 
         return embed;
     }
 
     static emoji = {
         checkmark: ":white_check_mark:",
-        x: ":x:"
+        x: ":x:",
+        noEntrySign: ":no_entry_sign:"
     }
 }
 

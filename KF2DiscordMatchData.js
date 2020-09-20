@@ -1,4 +1,6 @@
 const logger = require('./Logging');
+const helper = require('./DiscordHelper');
+const moment = require('moment');
 
 class KF2DiscordMatchData {
     mapName;
@@ -7,8 +9,16 @@ class KF2DiscordMatchData {
     totalWave;
     waveStarted;
     waveIsActive;
+    aiRemaining;
+    aiTotal;
 
-    createdOn;
+    createdTime;
+    startedTime;
+    endedTime;
+
+    waveStartTime;
+    waveEndTime;
+
     currentWave;
 
     playerList;
@@ -20,15 +30,29 @@ class KF2DiscordMatchData {
     // Flags
     forceUpdateLobbyEmbed;
     newMatchAnnounced;
+    traderActive;
+    matchEnded;
+    
 
-    constructor (sessionid, createdon) {
+    // Events
+    playerJoinEventHandler;
+    playerLeftEventHandler;
+    newGameStartingEventHandler;
+    newWaveStartingEventHandler;
+    traderTimeStartingEventHandler;
+
+    constructor (sessionid) {
         this.matchSessionId = sessionid;
-        this.createdOn = createdon;
+        this.createdTime = moment();
+        this.startedTime = null;
+        this.endedTime = null;
 
         this.playerList = [];
         this.playerMsgObjArray = [];
         this.newMatchAnnounced = false;
         this.forceUpdateLobbyEmbed = false;
+        this.traderActive = false;
+        this.matchEnded = false;
         this.currentWave = 0;
     }
     setMatchAnnounced() {
@@ -39,14 +63,62 @@ class KF2DiscordMatchData {
     }
 
     setMatchData(matchData) {
+        console.log({matchData});
+
+        // Detect wave starting
+        if (matchData.currentwave > this.currentWave && matchData.waveisactive) {
+            this.traderActive = false;
+
+            // Detect New Game Starting
+            if (matchData.currentWave == 1) {
+                logger.log('KF2', `New Game Starting: ${matchData.currentwave}`);
+                this.startedTime = moment();
+                if (this.newGameStartingEventHandler)
+                    this.newGameStartingEventHandler(matchData);
+            }
+            logger.log('KF2', `New Wave Starting: ${matchData.currentwave}`);
+            if (this.newWaveStartingEventHandler)
+                this.newWaveStartingEventHandler(matchData);
+
+            this.waveStartTime = moment();
+        }
+
+        // Detect Trader time
+        if (this.currentWave > 0 && !matchData.waveisactive && !this.traderActive) {
+            logger.log('KF2', `Trader Time Starting`);
+            this.traderActive = true;
+            this.waveEndTime = moment();
+            if (this.traderTimeStartingEventHandler)
+                this.traderTimeStartingEventHandler(matchData);
+        }
+
+        // Detect End of match
+        if (this.currentWave > 0 && !matchData.wavestarted && matchData.waveisactive && !this.matchEnded) {
+            logger.log('KF2', `Match Ended`);
+            this.matchEnded = true;
+            this.endedTime = moment();
+            if (this.matchEndedEventHandler)
+                this.matchEndedEventHandler(matchData)
+        }
+        if (this.traderActive && !matchData.wavestarted && !matchData.waveisactive && !this.matchEnded && matchData.playerlist.length == 0) {
+            logger.log('KF2', `Match Ended at Trader Time`);
+            this.matchEnded = true;
+            this.endedTime = moment();
+            if (this.matchEndedEventHandler)
+                this.matchEndedEventHandler(matchData)
+        }
+
+        this.aiRemaining = matchData.airemaining;
+        this.aiTotal = matchData.aitotal;
         this.mapName = matchData.mapname;
         this.gameDifficulty = matchData.gamedifficulty;
         this.gameLength = matchData.gamelength;
         this.totalWave = matchData.totalwave;
         this.waveStarted = matchData.wavestarted;
         this.waveIsActive = matchData.waveisactive;
-        
         this.currentWave = matchData.currentwave;
+
+
         //this.copyPlayerData(matchData.playerlist)
     }
 
@@ -109,10 +181,20 @@ class KF2DiscordMatchData {
                 kf2Player.changed = true;
                 this.forceUpdatePlayerEmbeds = true;
                 this.playerList.push(kf2Player);
-                logger.log('KF2', `Player Joined: ${kf2Player.playername}`);
+                logger.log('KF2', `Player Joined: ${kf2Player.playername} steamid: ${kf2Player.steamid}`);
+                if (this.playerJoinEventHandler) {
+                    this.playerJoinEventHandler(kf2player);
+                }
             }
             else {
                 if (JSON.stringify(matchPlayer, this.stringifyIgnore) != JSON.stringify(kf2Player, this.stringifyIgnore)) {
+                    if (matchPlayer.left) {
+                        matchPlayer.left = false;
+                        logger.log('KF2', `Player Joined Back: ${kf2Player.playername} steamid: ${kf2Player.steamid}`);
+                        if (this.playerJoinEventHandler) {
+                            this.playerJoinEventHandler(kf2player);
+                        }
+                    }
                     matchPlayer.changed = true;
                     this.copyProperties(matchPlayer, kf2Player);
                 }
@@ -120,10 +202,7 @@ class KF2DiscordMatchData {
         }
 
         // Check for players leaving the match
-        for (let matchPlayer of this.playerList) {
-            if (matchPlayer.left)
-                continue;
-
+        for (let matchPlayer of this.playerList.filter(p => !p.left)) {
             let playerLeft = true;
             for (let kf2Player of kf2PlayerList) {
                 if (kf2Player.steamid == matchPlayer.steamid) {
@@ -134,11 +213,16 @@ class KF2DiscordMatchData {
             matchPlayer.left = playerLeft;
             if (playerLeft) {
                 logger.log('KF2', `Player Left: ${matchPlayer.playername}`);
-                if (this.currentWave == 0) {
-                    
+                matchPlayer.leftTime = moment();
+                // If a player leaves at wave 0 (Lobby) we remove it from playerList collection
+                if (this.currentWave == 0 && this.playerList.indexOf(matchPlayer) >= 0) {
+                    this.playerList.splice(this.playerList.indexOf(matchPlayer), 1);
                 }
                 matchPlayer.changed = true;
                 this.forceUpdateLobbyEmbed = true;
+                if (this.playerLeftEventHandler) {
+                    this.playerLeftEventHandler(matchPlayer);
+                }
             }
         }
 
@@ -153,7 +237,8 @@ class KF2DiscordMatchData {
     checkMatchDataChanged(newMatchData) {
         if ((this.currentWave != newMatchData.currentwave)
         || (this.waveStarted != newMatchData.wavestarted)
-        || (this.waveIsActive != newMatchData.waveisactive)) {
+        || (this.waveIsActive != newMatchData.waveisactive)
+        || (this.aiRemaining != newMatchData.airemaining)) {
             this.forceUpdateLobbyEmbed = true;
         }
     }
@@ -163,6 +248,7 @@ class KF2DiscordMatchData {
         if (key=="steamData") return undefined;
         else if (key == "changed") return undefined;
         else if (key == "ping") return undefined;
+        else if (key == "leftTime") return undefined;
         else return value;
     }
 }

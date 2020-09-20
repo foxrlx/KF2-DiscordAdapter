@@ -41,7 +41,7 @@ let steam;
     }
 
     kf2listener.kf2MatchCreatedEventHandler = content => {
-        currentMatchSession = new matchData(content.matchsession, helper.getDateTime());
+        currentMatchSession = new matchData(content.matchsession);
     }
 
     kf2listener.kf2MatchLobbyDataEventHandler = async content => {
@@ -77,7 +77,7 @@ let steam;
         for (let player of currentMatchSession.playerList) {
             if (player.changed == true) {
                 player.changed = false;
-                let playerEmbed = helper.createPlayerEmbed(player);
+                let playerEmbed = helper.createPlayerEmbed(player, currentMatchSession);
                 let pMsgObj = currentMatchSession.getPlayerMsgObject(player.steamid);
                 if (pMsgObj == null) {
                     let steamid = helper.h2d(player.steamid);
