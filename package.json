@@ -1,0 +1,26 @@
+{
+  "name": "kf2discordadapter",
+  "version": "0.0.1",
+  "description": "KF2 Discord Bot Adapter",
+  "main": "KF2DiscordAdapter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node KF2DiscordAdapter.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/foxrlx/KF2-DiscordAdapter.git"
+  },
+  "author": "foxrlx",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/foxrlx/KF2-DiscordAdapter/issues"
+  },
+  "homepage": "https://github.com/foxrlx/KF2-DiscordAdapter#readme",
+  "dependencies": {
+    "config": "^3.3.1",
+    "discord.js": "^12.3.1",
+    "moment": "^2.29.0",
+    "request": "^2.88.2"
+  }
+}
