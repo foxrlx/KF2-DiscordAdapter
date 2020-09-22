@@ -1,6 +1,6 @@
 const net = require('net');
 const logger = require('./Logging');
-const kf2helper = require('./KF2Helper')
+const kf2helper = require('./KF2Helper');
 
 class KF2Listener {
     serverObj;
@@ -9,7 +9,9 @@ class KF2Listener {
     kf2MatchCreatedEventHandler;
     kf2MatchLobbyDataEventHandler;
     kf2ConnectionState;
+    dataBuffer;
     constructor(port) {
+        this.dataBuffer = "";
         this.port = port;
         this.KF2ConnectionState = kf2helper.CLOSED;
     }
@@ -42,30 +44,41 @@ class KF2Listener {
     }
 
     onDataReceivedHandler(data) {
-        //console.log(data.toString());
-        var jsonData = JSON.parse(data);
-        switch (jsonData.code) {
-            case 'KF2_MSG': {
-                this.log(`${jsonData.content.name} (${jsonData.content.perk}) said: ${jsonData.content.message}`)
-                if (this.kf2MessageEventHandler)
-                    this.kf2MessageEventHandler(jsonData.content);
+        if (data.indexOf('\n') < 0) {
+            this.dataBuffer += data;
+        }
+        else {
+            this.dataBuffer += data;
+            try {
+                var jsonData = JSON.parse(this.dataBuffer);
+                this.dataBuffer = "";
+                switch (jsonData.code) {
+                    case 'KF2_MSG': {
+                        this.log(`${jsonData.content.name} (${jsonData.content.perk}) said: ${jsonData.content.message}`)
+                        if (this.kf2MessageEventHandler)
+                            this.kf2MessageEventHandler(jsonData.content);
 
-                break;
+                        break;
+                    }
+                    case 'KF2_MATCHCREATED': {
+                        this.log("New Match Created");
+                        if (this.kf2MatchCreatedEventHandler)
+                            this.kf2MatchCreatedEventHandler(jsonData.content);
+                        break;
+                    }
+                    case 'KF2_LOBBY_UPDATE': {
+                        //this.log("Lobby Update");
+                        if (this.kf2MatchLobbyDataEventHandler)
+                            this.kf2MatchLobbyDataEventHandler(jsonData.content);
+                        break;
+                    }
+                }
             }
-            case 'KF2_MATCHCREATED': {
-                this.log("New Match Created");
-                if (this.kf2MatchCreatedEventHandler)
-                    this.kf2MatchCreatedEventHandler(jsonData.content);
-                break;
-            }
-            case 'KF2_LOBBY_UPDATE': {
-                //this.log("Lobby Update");
-                if (this.kf2MatchLobbyDataEventHandler)
-                    this.kf2MatchLobbyDataEventHandler(jsonData.content);
-                break;
+            catch (ex) {
+                logger.log('KF2Listener', "ERROR PARSING RECEIVED JSON STRING FROM KF2:\n" + this.dataBuffer);
+                this.dataBuffer = "";
             }
         }
     }
 }
-
 module.exports = KF2Listener
