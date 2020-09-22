@@ -2,5 +2,8 @@
     "Discord": {
         "Token":"discord bot token",
         "ChannelId":"channel id"
+    },
+    "Steam": {
+        "Token": "Steam API Token"
     }
 }
