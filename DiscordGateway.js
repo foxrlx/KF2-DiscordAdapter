@@ -10,8 +10,8 @@ class DiscordGateway {
         this.RegisterEvents();
     }
     
-    Login() {
-        this.client.login(this.token);
+    async Login() {
+        return this.client.login(this.token);
     }
 
     async SendMsg(msg) {
@@ -22,7 +22,7 @@ class DiscordGateway {
     RegisterEvents() {
         this.client.on('ready', () => {
             if (this.DiscordReadyHandler)
-                this.DiscordReadyHandler()
+                this.DiscordReadyHandler();
         });
 
         this.client.on('message', msg => {
