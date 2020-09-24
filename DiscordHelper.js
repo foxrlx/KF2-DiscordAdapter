@@ -139,6 +139,22 @@ class DiscordHelper {
             perkUrl = kf2helper.KF2PerkImageUrl[pData.perkname]
         }
 
+        let items = [];
+        if (Array.isArray(pData.inventory)) {
+            for (let item of pData.inventory) {
+                if (kf2helper.KF2IgnoreInventory.indexOf(item.itemClassName) >= 0)
+                    continue;
+                let weaponStats = pData.getWeaponStats(item.itemClassName);
+                let weaponStatsText = "";
+                let ammo = item.isMelee ? "" : ` (${item.ammoCount}/${item.spareAmmoCount})`;
+                if (weaponStats) {
+                    weaponStatsText = ` **Headshots:** ${weaponStats.headShots} **Dmg. Dealt**: ${weaponStats.damageAmount}`
+                }
+                let itemText = `**Weapon:** ${item.itemName}${ammo}${weaponStatsText}`;
+                items.push(itemText);
+            }
+        }
+
         let color = this.getColor(pData.maxhealth > 0 ? pData.health / pData.maxhealth * 100 : 0);
         if (pData.left)
             color = "#ff0000";
@@ -151,6 +167,9 @@ class DiscordHelper {
                 { name: "Dosh:", value: pData.dosh, inline: true },
                 { name: "Ping:", value: pData.ping, inline: true },
             );
+
+            if (items.length > 0)
+                embed.addField("Inventory:", items.join("\n"))
 
         if (pData.left) {
             embed.setFooter(`player left at wave ${matchData.currentWave} - ${this.getDateTime(pData.leftTime)}`);

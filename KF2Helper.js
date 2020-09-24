@@ -15,6 +15,10 @@ const KF2PerkImageUrl = {
     Survivalist: "https://wiki.killingfloor2.com/images/thumb/e/eb/KF2_Perk_Survivalist_White.png/128px-KF2_Perk_Survivalist_White.png",
     SWAT: "https://wiki.killingfloor2.com/images/thumb/9/9b/KF2_Perk_SWAT_White.png/128px-KF2_Perk_SWAT_White.png"
 }
+const KF2IgnoreInventory = [
+    "KFWeap_Healer_Syringe", "KFWeap_Welder"
+]
 
 module.exports.KF2ConnectionState = KF2ConnectionState;
 module.exports.KF2PerkImageUrl = KF2PerkImageUrl;
+module.exports.KF2IgnoreInventory = KF2IgnoreInventory;

@@ -14,7 +14,7 @@ let steam;
     let token = config.get("Discord.Token");
     let channelId = config.get("Discord.ChannelId")
     let steamToken = config.get("Steam.Token");
-    
+
     steam = new steamHelper(steamToken);
     let discord = new discordGateway(token, channelId);
 
@@ -68,7 +68,7 @@ let steam;
             lastPlayerEmbedSent = new Date();
         }
     }
-    
+
     async function sendEmbeds() {
         if (currentMatchSession.currentWave == 0) {
             sendLobbyEmbed();

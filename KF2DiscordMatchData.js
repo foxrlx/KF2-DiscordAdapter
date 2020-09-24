@@ -11,6 +11,7 @@ class KF2DiscordMatchData {
     waveIsActive;
     aiRemaining;
     aiTotal;
+    bossData;
 
     createdTime;
     startedTime;
@@ -32,7 +33,7 @@ class KF2DiscordMatchData {
     newMatchAnnounced;
     traderActive;
     matchEnded;
-    
+
 
     // Events
     playerJoinEventHandler;
@@ -40,8 +41,9 @@ class KF2DiscordMatchData {
     newGameStartingEventHandler;
     newWaveStartingEventHandler;
     traderTimeStartingEventHandler;
+    bossWaveStartingEventHandler;
 
-    constructor (sessionid) {
+    constructor(sessionid) {
         this.matchSessionId = sessionid;
         this.createdTime = moment();
         this.startedTime = null;
@@ -61,9 +63,15 @@ class KF2DiscordMatchData {
     checkMatchAnnounced() {
         return this.newMatchAnnounced;
     }
+    getCurrentWave() {
+        return this.currentWave - this.currentWave > 0 ? 1 : 0;
+    }
+    isBossWave() {
+        return this.currentWave == this.totalWave;
+    }
 
     setMatchData(matchData) {
-        console.log({matchData});
+        console.log(matchData.playerlist);
 
         // Detect wave starting
         if (matchData.currentwave > this.currentWave && matchData.waveisactive) {
@@ -118,6 +126,13 @@ class KF2DiscordMatchData {
         this.waveIsActive = matchData.waveisactive;
         this.currentWave = matchData.currentwave;
 
+        if (matchData.bossData) {
+            this.bossData.health = matchData.bossData.health;
+            this.bossData.maxHealth = matchData.bossData.maxHealth;
+            this.bossData.name = matchData.bossData.name;
+            this.bossData.className = matchData.bossData.className;
+        }
+
 
         //this.copyPlayerData(matchData.playerlist)
     }
@@ -126,7 +141,7 @@ class KF2DiscordMatchData {
         if (Array.isArray(newPList)) {
             for (let newPlayer of newPList) {
                 let player = this.getPlayerBySteamId(newPlayer.steamid);
-                if (player == null){
+                if (player == null) {
                     newPlayer.changed = true;
                     this.forceUpdatePlayerEmbeds = true;
                     this.playerList.push(newPlayer);
@@ -139,8 +154,7 @@ class KF2DiscordMatchData {
     }
 
     copyProperties(obj1, obj2) {
-        for (var prop in obj1)
-        {
+        for (var prop in obj1) {
             if (Object.prototype.hasOwnProperty.call(obj1, prop)) {
                 if (obj2[prop] != null)
                     obj1[prop] = obj2[prop];
@@ -180,6 +194,9 @@ class KF2DiscordMatchData {
             if (matchPlayer == null) {
                 kf2Player.changed = true;
                 this.forceUpdatePlayerEmbeds = true;
+                kf2Player.getWeaponStats = weaponClass => {
+                    return this.getWeaponStats(kf2Player, weaponClass);
+                }
                 this.playerList.push(kf2Player);
                 logger.log('KF2', `Player Joined: ${kf2Player.playername} steamid: ${kf2Player.steamid}`);
                 if (this.playerJoinEventHandler) {
@@ -234,21 +251,32 @@ class KF2DiscordMatchData {
         // return false;
     }
 
+    getWeaponStats(player, weaponClass) {
+        if (!Array.isArray(player.weaponDamage))
+            return;
+
+        for (let item of player.weaponDamage) {
+            if (item.itemClassName == weaponClass) {
+                return item;
+            }
+        }
+    }
+
     checkMatchDataChanged(newMatchData) {
         if ((this.currentWave != newMatchData.currentwave)
-        || (this.waveStarted != newMatchData.wavestarted)
-        || (this.waveIsActive != newMatchData.waveisactive)
-        || (this.aiRemaining != newMatchData.airemaining)) {
+            || (this.waveStarted != newMatchData.wavestarted)
+            || (this.waveIsActive != newMatchData.waveisactive)
+            || (this.aiRemaining != newMatchData.airemaining)) {
             this.forceUpdateLobbyEmbed = true;
         }
     }
 
-    stringifyIgnore(key, value)
-    {
-        if (key=="steamData") return undefined;
+    stringifyIgnore(key, value) {
+        if (key == "steamData") return undefined;
         else if (key == "changed") return undefined;
         else if (key == "ping") return undefined;
         else if (key == "leftTime") return undefined;
+        else if (key == "getWeaponStats") return undefined;
         else return value;
     }
 }
