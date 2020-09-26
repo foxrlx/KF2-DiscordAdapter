@@ -27,7 +27,7 @@ let steam;
     discord.DiscordMessageHandler = msg => {
         logger.log("Discord", `${msg.author.username}: ${msg.content}`);
     }
-    discord.Login();
+    discord.Login().catch(error => { logger.log("Discord", `Login: ${error}`); });
 
     let kf2listener = new kf2Listener(7070);
 
