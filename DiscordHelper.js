@@ -146,7 +146,8 @@ class DiscordHelper {
                     continue;
                 let weaponStats = pData.getWeaponStats(item.itemClassName);
                 let weaponStatsText = "";
-                let ammo = item.isMelee ? "" : ` (${item.ammoCount}/${item.spareAmmoCount})`;
+                let spareAmmo = item.spareAmmoCount > 0 ? `/${item.spareAmmoCount}` : "";
+                let ammo = item.isMelee ? "" : ` (${item.ammoCount}${spareAmmo})`;
                 if (weaponStats) {
                     weaponStatsText = ` **Headshots:** ${weaponStats.headShots} **Dmg. Dealt**: ${weaponStats.damageAmount}`
                 }
