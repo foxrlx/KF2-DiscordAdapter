@@ -52,9 +52,9 @@ class DiscordHelper {
             steamAvatarUrl = steamData.response.players[0].avatarmedium;
             steamProfileUrl = steamData.response.players[0].profileurl;
         }
-        if (kf2MsgData.perkname)
+        if (kf2MsgData.perkName)
         {
-            perkUrl = kf2helper.KF2PerkImageUrl[kf2MsgData.perkname]
+            perkUrl = kf2helper.KF2PerkImageUrl[kf2MsgData.perkName]
         }
 
         let color = this.getColor(kf2MsgData.healthpercent);
@@ -62,25 +62,42 @@ class DiscordHelper {
             .setColor(color)
             .setAuthor(kf2MsgData.name, steamAvatarUrl, steamProfileUrl)
             .setDescription(kf2MsgData.message)
-            .setFooter(`${kf2MsgData.perkname} ${kf2MsgData.perklevel}`, perkUrl);;
+            .setFooter(`${kf2MsgData.perkName} ${kf2MsgData.perkLevel}`, perkUrl);;
         
         return embed;
     }
 
     static createLobbyEmbed(matchData) {
         let title = "Match waiting in lobby";
-        if (matchData.currentWave > 0 && !matchData.traderActive && !matchData.matchEnded)
-            title = `Match in proggress - Wave: ${matchData.currentWave}/${matchData.totalWave}`;
-        if (matchData.currentWave > 0 && matchData.traderActive && !matchData.matchEnded)
-            title = `Match in proggress - Trader Time - Next Wave: ${matchData.currentWave+1}`;
-        if (matchData.matchEnded)
-            title = `Match ended at wave ${matchData.currentWave} of ${matchData.totalWave}`;
+        if (matchData.isWaveInProgress()) {
+            let waveInfo = `Wave: ${matchData.currentWave}/${matchData.getTotalWave()}`;
+            if (matchData.isBossWave())
+                waveInfo = "Boss Wave";
+            title = `Match in proggress - ${waveInfo}`;
+        }
+        if (matchData.isTraderOpen())
+            title = `Match in proggress - Trader Time - Next Wave: ${matchData.getNextWave()}`;
+        if (matchData.isMatchEnded()) {
+            let matchEndMsg = "";
+            if (matchData.isBossDead()) {
+                matchEndMsg = `squad killed ${matchData.bossData.name}`;
+            }
+            if (matchData.isBossWave() && !matchData.isBossDead()) {
+                matchEndMsg = `squad wiped out by ${matchData.bossData.name}`;
+            }
+            if (!matchData.isBossWave())
+            {
+                matchEndMsg = `squad wiped out at wave ${matchData.currentWave} of ${matchData.getTotalWave()}`;
+            }
+            let matchDuration = moment.duration(matchData.endedTime.diff(matchData.startedTime));
+            title = `Match ended ${matchEndMsg} Duration: ${matchDuration.hours()} hours ${matchDuration.minutes()} mins ${matchDuration.seconds()} secs`;
+        }
         let embed = new Discord.MessageEmbed()
             .setColor("#00ff00")
             .setTitle(title)
             .addFields(
                 { name: "Map Name:", value: matchData.mapName, inline: true },
-                { name: "Game Info:", value: `${matchData.gameDifficulty} - ${matchData.gameLength} (${matchData.totalWave})`, inline: true }
+                { name: "Game Info:", value: `${matchData.gameDifficulty} - ${matchData.gameLength} (${matchData.getTotalWave()} waves)`, inline: true }
             );
             
             let footer = []
@@ -88,6 +105,9 @@ class DiscordHelper {
 
             if (matchData.startedTime != null)
                 footer.push(`Started: ${this.getDateTime(matchData.startedTime)}`);
+
+            if (matchData.isBossDead())
+                footer.push(`Boss Killed: ${this.getDateTime(matchData.bossKilledTime)}`)
 
             if (matchData.endedTime != null)
                 footer.push(`Ended: ${this.getDateTime(matchData.endedTime)}`);
@@ -100,6 +120,21 @@ class DiscordHelper {
             embed.addField("Last Wave Duration:", `${(duration.hours() * 60) + duration.minutes()} mins ${duration.seconds()} secs`, true);
         }
 
+        if (matchData.isBossWave()) {
+            let bossHealth = "";
+            if (matchData.isBossSpawned())
+                bossHealth = ` - **Health**: ${matchData.getBossHealth()}/${matchData.bossData.maxHealth}`;
+            if (matchData.isBossSpawned() && matchData.isBossDead()) {
+                let duration = moment.duration(matchData.bossKilledTime.diff(matchData.bossSpawnTime));
+                let bossKiller = matchData.getBossKiller();
+                let bossKilledBy = "";
+                if (bossKiller)
+                    bossKilledBy = ` **by:** ${bossKiller.playerName}`;
+                bossHealth = ` - **DEAD** **Killed in:** ${(duration.hours() * 60) + duration.minutes()} mins ${duration.seconds()} secs${bossKilledBy}`;
+            }
+            embed.addField("Boss:", `${matchData.bossData.name}${bossHealth}`);
+        }
+
         var playersText = [];
         if (Array.isArray(matchData.playerList) && matchData.playerList.length > 0) {
             for (let player of matchData.playerList) {
@@ -109,7 +144,7 @@ class DiscordHelper {
                 if (player.left)
                     icon = this.emoji.noEntrySign;
                 
-                playersText.push(`${icon} ${player.playername}${player.left ? "(disconnected)" : ""} - ${player.perkname} ${player.perklevel}`);
+                playersText.push(`${icon} ${player.playerName}${player.left ? "(disconnected)" : ""} - ${player.perkName} ${player.perkLevel}`);
                 if (player.ready == false)
                     embed.setColor("#ff0000");
             }
@@ -128,15 +163,14 @@ class DiscordHelper {
         let steamAvatarUrl = "https://arte.folha.uol.com.br/esporte/2016/07/30/estadio-olimpico/images/load.gif";
         let steamProfileUrl = "";
         let perkUrl = "";
-        console.log(pData.steamData);
 
         if (pData.steamData && pData.steamData.response.players.length > 0) {
             steamAvatarUrl = pData.steamData.response.players[0].avatarmedium;
             steamProfileUrl = pData.steamData.response.players[0].profileurl;
         }
-        if (pData.perkname)
+        if (pData.perkName)
         {
-            perkUrl = kf2helper.KF2PerkImageUrl[pData.perkname]
+            perkUrl = kf2helper.KF2PerkImageUrl[pData.perkName]
         }
 
         let items = [];
@@ -156,14 +190,15 @@ class DiscordHelper {
             }
         }
 
-        let color = this.getColor(pData.maxhealth > 0 ? pData.health / pData.maxhealth * 100 : 0);
+        let color = this.getColor(pData.maxHealth > 0 ? pData.health / pData.maxHealth * 100 : 0);
         if (pData.left)
             color = "#ff0000";
         let embed = new Discord.MessageEmbed()
             .setColor(color)
-            .setAuthor(pData.playername, steamAvatarUrl, steamProfileUrl)
+            .setAuthor(pData.playerName, steamAvatarUrl, steamProfileUrl)
             .addFields(
-                { name: "Health:", value: `${pData.health}/${pData.maxhealth}`, inline: true },
+                { name: "Health:", value: `${pData.health}/${pData.maxHealth}`, inline: true },
+                { name: "Armor:", value: `${pData.armor}/${pData.maxArmor}`, inline: true },
                 { name: "K/D/A:", value: `${pData.kills}/${pData.deaths}/${pData.assists}`, inline: true },
                 { name: "Dosh:", value: pData.dosh, inline: true },
                 { name: "Ping:", value: pData.ping, inline: true },
@@ -172,11 +207,18 @@ class DiscordHelper {
             if (items.length > 0)
                 embed.addField("Inventory:", items.join("\n"))
 
-        if (pData.left) {
+        if (pData.spawned == false) {
+            embed.setFooter(`Waiting`)
+        }
+        else if (pData.health <= 0 && pData.spawned == true) {
+            embed.setFooter(`Dead`);
+        }
+
+        else if (pData.left) {
             embed.setFooter(`player left at wave ${matchData.currentWave} - ${this.getDateTime(pData.leftTime)}`);
         }
         else {
-            embed.setFooter(`${pData.perkname} ${pData.perklevel}`, perkUrl);
+            embed.setFooter(`${pData.perkName} ${pData.perkLevel}`, perkUrl);
         }
 
         return embed;

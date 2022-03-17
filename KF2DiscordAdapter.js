@@ -8,6 +8,7 @@ const matchData = require('./KF2DiscordMatchData');
 
 let currentMatchSession;
 let lastPlayerEmbedSent;
+let lastLobbyEmbedSent;
 let checkEmbedsInterval;
 let steam;
 (async () => {
@@ -19,6 +20,7 @@ let steam;
     let discord = new discordGateway(token, channelId);
 
     lastPlayerEmbedSent = new Date();
+    lastLobbyEmbedSent = new Date();
     checkEmbedsInterval = setInterval(checkPlayerEmbedsTimer, 500);
 
     discord.DiscordReadyHandler = () => {
@@ -32,8 +34,8 @@ let steam;
     let kf2listener = new kf2Listener(7070);
 
     kf2listener.kf2MessageEventHandler = content => {
-        let steamid = helper.h2d(content.steamid);
-        steam.getPlayerSummaries(steamid).then(data => {
+        let steamId = helper.h2d(content.steamId);
+        steam.getPlayerSummaries(steamId).then(data => {
             let steamData = JSON.parse(data);
             let embed = helper.createMessageEmbed(content, steamData);
             discord.SendMsg(embed);
@@ -48,17 +50,27 @@ let steam;
         if (content.matchsession != currentMatchSession.matchSessionId)
             return;
 
-        if (!Array.isArray(content.playerlist))
-            content.playerlist = [];
+        if (!Array.isArray(content.playerList))
+            content.playerList = [];
 
-        currentMatchSession.checkPlayerDataChanged(content.playerlist);
+        //console.log(content.playerList);
+
+        currentMatchSession.checkPlayerDataChanged(content.playerList);
         currentMatchSession.checkMatchDataChanged(content);
         currentMatchSession.setMatchData(content);
     }
     function checkPlayerEmbedsTimer() {
         if (currentMatchSession && currentMatchSession.forceUpdateLobbyEmbed) {
+            currentMatchSession.matchDataChanged = true;
             currentMatchSession.forceUpdateLobbyEmbed = false;
             sendLobbyEmbed();
+        }
+
+        if ((new Date() - lastLobbyEmbedSent) / 1000 > 5) {
+            if (currentMatchSession) {
+                sendLobbyEmbed();
+            }
+            lastLobbyEmbedSent = new Date();
         }
 
         if ((new Date() - lastPlayerEmbedSent) / 1000 > 5) {
@@ -78,31 +90,40 @@ let steam;
             if (player.changed == true) {
                 player.changed = false;
                 let playerEmbed = helper.createPlayerEmbed(player, currentMatchSession);
-                let pMsgObj = currentMatchSession.getPlayerMsgObject(player.steamid);
+                let pMsgObj = currentMatchSession.getPlayerMsgObject(player.steamId);
                 if (pMsgObj == null) {
-                    let steamid = helper.h2d(player.steamid);
-                    steam.getPlayerSummaries(steamid).then(data => {
+                    let steamId = helper.h2d(player.steamId);
+                    steam.getPlayerSummaries(steamId).then(data => {
                         let steamData = JSON.parse(data);
                         player.steamData = steamData;
                         player.changed = true;
+                        logger.log("SteamAPI", `Data for ${player.playerName} received: ${steamData}`);
                     });
                     let playerMsgObj = await discord.SendMsg(playerEmbed);
-                    currentMatchSession.playerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.matchSessionId}_${player.steamid}` })
+                    logger.log("Discord", `Sending new Player Message: ${player.playerName}`);
+                    currentMatchSession.playerMsgObjArray.push({ msgobj: playerMsgObj, id: `${currentMatchSession.matchSessionId}_${player.steamId}` })
                 }
                 else {
                     pMsgObj.msgobj.edit(playerEmbed);
+                    logger.log("Discord", `Editing Player Message: ${player.playerName}`);
                 }
             }
         }
     }
 
     async function sendLobbyEmbed() {
-        let embed = helper.createLobbyEmbed(currentMatchSession);
+        if (currentMatchSession.matchDataChanged == true) {
+            currentMatchSession.matchDataChanged = false;
+            let embed = helper.createLobbyEmbed(currentMatchSession);
 
-        if (!currentMatchSession.matchDataMsgObj)
-            currentMatchSession.matchDataMsgObj = await discord.SendMsg(embed);
-        else {
-            currentMatchSession.matchDataMsgObj.edit(embed);
+            if (!currentMatchSession.matchDataMsgObj) {
+                currentMatchSession.matchDataMsgObj = await discord.SendMsg(embed);
+                logger.log("Discord", 'Sending new Lobby Message');
+            }
+            else {
+                currentMatchSession.matchDataMsgObj.edit(embed);
+                logger.log("Discord", 'Editing Lobby Message');
+            }
         }
     }
 

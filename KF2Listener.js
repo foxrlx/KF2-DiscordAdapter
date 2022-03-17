@@ -49,6 +49,7 @@ class KF2Listener {
         }
         else {
             this.dataBuffer += data;
+            this.log(this.dataBuffer);
             try {
                 var jsonData = JSON.parse(this.dataBuffer);
                 this.dataBuffer = "";
